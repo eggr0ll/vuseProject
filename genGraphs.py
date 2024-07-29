@@ -10,6 +10,7 @@ import torch.nn.functional as F
 import os
 import random
 import dill
+import re
 from collections import defaultdict
 from torch_geometric.data import Data
 from torch.nn import Embedding
@@ -29,7 +30,7 @@ def tokenize_instructions(instruction):
 vocab = defaultdict(lambda: len(vocab))
 
 
-dir_list = os.listdir("./results")
+dir_list = os.listdir("./results_jp/01-runGenCfg/")
 #print(dir_list)
 
 
@@ -43,7 +44,7 @@ digraphs = []                 # holds all 'DiGraph' objects
 for file in dir_list:
     G = nx.DiGraph() 
     
-    full_file_path = "./results/" + file
+    full_file_path = "./results_jp/01-runGenCfg/" + file
     print("Processing", full_file_path)
     tokenized_instrs = []
     blocks = {}
@@ -59,18 +60,25 @@ for file in dir_list:
         for x in range(total_lines):
             line = output_file.readline()
             if "BLOCK" in line:
-                block_address = int(line[6:13])
-                block_successors = line[30:].replace(",", " ").replace("]", "").strip().split()
+                line = line.split()
+                block_address = int(line[1])
+                block_successors = line[4].replace("[", "").replace("]", "").replace(",", " ").strip().split()
                 block_successors = [eval(successor) for successor in block_successors] # cast to int
             elif "BLOCK" not in line and "None" not in line and "---" not in line:
-                instr_in_block.append(line[8:].strip().replace(",", ""))
+                #instr_in_block.append(line[8:].strip().replace(",", ""))
+                line = line.strip()
+                pattern = re.compile(r'^\S+\s+(.*)')
+                match = pattern.match(line)
+                if match:
+                    extracted_line = match.group(1).replace(",", "")
+                    instr_in_block.append(extracted_line)
             # need to loop thru all instr b4 assigning it to key
             elif "None" in line:
                 blocks[block_address] = instr_in_block
                 instr_in_block = []
                 successors[block_address] = block_successors
                 block_successors = []
-    print(blocks)
+    #print(blocks)
 
     # tokenize instructions & add to vocab dict
     for instrs in blocks.values():
@@ -84,8 +92,8 @@ for file in dir_list:
             for token in instr:
                 _ = vocab[token]
 
-    print("Tokenized instructions:\n", tokenized_instrs)
-    print("Vocab:\n", vocab)
+    #print("Tokenized instructions:\n", tokenized_instrs)
+    #print("Vocab:\n", vocab)
 
     #nx.draw(G)
     #plt.show()
@@ -100,6 +108,7 @@ for file in dir_list:
     def embed_instr(instr):
         tokens = instr.split()
         token_indices = [vocab[token] for token in tokens]
+        #print("Token indices:", token_indices)
         embedded_tokens = embedding_layer(torch.tensor(token_indices))
         return embedded_tokens.mean(dim=0)
     
@@ -115,7 +124,7 @@ for file in dir_list:
             G.add_edge(block_address, successor)
 
     #print("Nodes:\n", G.nodes(data=True))
-    print("Edges:\n", G.edges())
+    #print("Edges:\n", G.edges())
 
     # STEP 4: CONVERT TO INPUT FOR PYGEO
     # need x = node feature matrix w/ [num_nodes, num_node_features] as tensor
@@ -210,4 +219,7 @@ for data, file in zip(graphs_as_data, dir_list):
     print()
 print("Done padding all graphs.")
 
-dill.dump_module("session.pkl")
+with open("graphsAsData.pkl", "wb") as file:
+    dill.dump(graphs_as_data, file)
+with open("allGraphsMaxLength.pkl", "wb") as file:
+    dill.dump(all_graphs_max_length, file)

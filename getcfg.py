@@ -1,14 +1,16 @@
 import networkx
 import angr
 import pprint
-#import argparse
+import argparse
+#import logging
+#logging.getLogger('angr').setLevel('DEBUG')
 
-#parser = argparse.ArgumentParser()
-#parser.add_argument("--input")
-#args = parser.parse_args()
+parser = argparse.ArgumentParser()
+parser.add_argument("--input")
+args = parser.parse_args()
 
-#p = angr.Project(args.input, load_options={'auto_load_libs': False})
-p = angr.Project('C:\\Users\\mango1\\Desktop\\sourcecode_datasets\\datasets\\Spyware\\Zeus\\bin\\7z.exe', load_options={'auto_load_libs': False})
+p = angr.Project(args.input, load_options={'auto_load_libs': False})
+#p = angr.Project('C:\\Users\\mango1\\Desktop\\sourcecode_datasets\\datasets\\Spyware\\Zeus\\bin\\7z.exe', load_options={'auto_load_libs': False})
 
 
 # get names of functions in project
@@ -23,7 +25,7 @@ for f in p.kb.functions.items():
 cfg = p.analyses.CFGFast()
 
 
-# get graph for function main 
+# get graph for function main
 
 
 for function_item in cfg.kb.functions.items():

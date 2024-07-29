@@ -1,20 +1,33 @@
 import dill
-dill.load_module("session.pkl")
+import random
+import torch
+import torch.nn.functional as F
+from torch.nn import Embedding
+from torch.nn import Linear
+from torch_geometric.nn import GCNConv
+from torch_geometric.nn import global_mean_pool
+from torch_geometric.loader import DataLoader
+
+with open("graphsAsData.pkl", "rb") as file:
+    graphs_as_data = dill.load(file)
+with open("allGraphsMaxLength.pkl", "rb") as file:
+    all_graphs_max_length = dill.load(file)
 
 print("Graphs:", graphs_as_data)
+print("Number of graphs:", len(graphs_as_data))
 # shuffle graphs & create train/test datasets
 graphs_shuffled = graphs_as_data
 random.seed(2)
 random.shuffle(graphs_shuffled)
-train_dataset = graphs_shuffled[:20]
-test_dataset = graphs_shuffled[20:]
+train_dataset = graphs_shuffled[:468]
+test_dataset = graphs_shuffled[468:]
 print("train dataset:", train_dataset)
 print("test dataset:", test_dataset)
 
 
 # batch multiple graphs into single graph
-train_loader = DataLoader(train_dataset, batch_size=10, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=10, shuffle=False)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
 for step, data in enumerate(train_loader):
     print(f'Step {step + 1}:')
@@ -32,7 +45,7 @@ class GCN(torch.nn.Module):
         self.conv1 = GCNConv(all_graphs_max_length, hidden_channels)
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
         self.conv3 = GCNConv(hidden_channels, hidden_channels)
-        self.lin = Linear(hidden_channels, 3)       # 3 is sub for dataset.num_classes
+        self.lin = Linear(hidden_channels, 7)       # 7 is sub for dataset.num_classes
 
     def forward(self, x, edge_index, batch):
         # 1. Obtain node embeddings 
